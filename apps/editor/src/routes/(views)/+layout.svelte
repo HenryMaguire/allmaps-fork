@@ -80,7 +80,7 @@
     projectionsState
   )
 
-  setScopeState(
+  const scopeState = setScopeState(
     apiBaseUrl,
     annotationsApiBaseUrl,
     sourceState,
@@ -89,6 +89,16 @@
     projectionsState
   )
   setHeadState(previewUrl, sourceState)
+
+  // ground-control fork: mirror the live annotation to window.__lastAnnotation
+  // so a Browserbase/Playwright session can read it via page.evaluate(). The
+  // value updates on every GCP/mask/transform change — no save button needed.
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      ;(window as unknown as { __lastAnnotation?: unknown }).__lastAnnotation =
+        scopeState.annotation
+    }
+  })
 
   // setWarpedMapLayerState(
   //   mapsState,

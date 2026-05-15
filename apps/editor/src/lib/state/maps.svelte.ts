@@ -4,6 +4,22 @@ import ReconnectingWebSocket from 'reconnecting-websocket'
 
 import Client from 'sharedb-client-browser/dist/sharedb-client-umd.cjs'
 
+// ground-control fork: offline mode. Replaces the live ShareDB websocket so
+// the Editor never reads from or writes to allmaps.org. All ops apply locally
+// to the in-memory ShareDB doc; nothing leaves the browser. See
+// (views)/+layout.svelte for the matching window.__lastAnnotation mirror.
+const GROUND_CONTROL_OFFLINE = true
+
+class OfflineSocket {
+  readyState = 1 // OPEN — keeps ShareDB's Connection happy.
+  onopen: ((ev: unknown) => void) | null = null
+  onmessage: ((ev: unknown) => void) | null = null
+  onerror: ((ev: unknown) => void) | null = null
+  onclose: ((ev: unknown) => void) | null = null
+  send(_msg: string) {}
+  close() {}
+}
+
 import { throttle } from 'lodash-es'
 import { type as json1Type, insertOp, replaceOp, removeOp } from 'ot-json1'
 
@@ -133,9 +149,14 @@ export class MapsState extends MapsEventTarget {
     this.#errorState = errorState
     this.#mapsHistoryState = mapsHistoryState
 
-    this.#rws = new ReconnectingWebSocket(apiWsUrl, [], {
-      maxEnqueuedMessages: 0
-    })
+    if (GROUND_CONTROL_OFFLINE) {
+      // No real socket — agent edits never leave the browser.
+      this.#rws = new OfflineSocket() as unknown as ReconnectingWebSocket
+    } else {
+      this.#rws = new ReconnectingWebSocket(apiWsUrl, [], {
+        maxEnqueuedMessages: 0
+      })
+    }
 
     Client.types.register(json1Type)
 
@@ -183,8 +204,16 @@ export class MapsState extends MapsEventTarget {
 
     this.#doc = this.#connection.get('images', allmapsImageId)
 
-    this.#doc.subscribe(this.#handleSnapshot.bind(this))
     this.#doc.on('op', this.#handleOperation.bind(this))
+
+    if (GROUND_CONTROL_OFFLINE) {
+      // Skip server roundtrip: synthesize an empty snapshot so the doc is
+      // type-aware and #maps initialises to {}. Subsequent submitOps apply
+      // locally just as they would in connected mode.
+      this.#handleSnapshot(null as unknown as ShareDBError)
+    } else {
+      this.#doc.subscribe(this.#handleSnapshot.bind(this))
+    }
   }
 
   #handleSnapshot(err: ShareDBError) {

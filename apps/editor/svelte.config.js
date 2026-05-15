@@ -1,7 +1,5 @@
-import adapter from '@sveltejs/adapter-cloudflare'
+import adapter from '@sveltejs/adapter-node'
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
-
-const environment = process.env.NODE_ENV === 'development' ? 'dev' : undefined
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -9,11 +7,7 @@ const config = {
     postcss: true
   }),
   kit: {
-    adapter: adapter({
-      platformProxy: {
-        environment
-      }
-    }),
+    adapter: adapter(),
     alias: {
       $lib: './src/lib',
       '$lib/*': './src/lib/*'
