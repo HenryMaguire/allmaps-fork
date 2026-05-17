@@ -91,13 +91,30 @@
   setHeadState(previewUrl, sourceState)
 
   // ground-control fork: mirror the live annotation to window.__lastAnnotation
-  // so a Browserbase/Playwright session can read it via page.evaluate(). The
-  // value updates on every GCP/mask/transform change — no save button needed.
+  // (for direct page.evaluate readback) and POST it to /api/episodes/{eid}/...
+  // when ?episode_id=<eid> is present (for sidecar readback by the RL rubric).
+  let postTimer: ReturnType<typeof setTimeout> | null = null
+
   $effect(() => {
-    if (typeof window !== 'undefined') {
-      ;(window as unknown as { __lastAnnotation?: unknown }).__lastAnnotation =
-        scopeState.annotation
-    }
+    if (typeof window === 'undefined') return
+    const ann = scopeState.annotation
+    ;(window as unknown as { __lastAnnotation?: unknown }).__lastAnnotation =
+      ann
+
+    const eid = page.url.searchParams.get('episode_id')
+    if (!eid) return
+
+    if (postTimer) clearTimeout(postTimer)
+    postTimer = setTimeout(() => {
+      fetch(`/api/episodes/${encodeURIComponent(eid)}/annotation`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(ann),
+        keepalive: true
+      }).catch(() => {
+        /* sidecar best-effort; rubric will retry */
+      })
+    }, 300)
   })
 
   // setWarpedMapLayerState(
