@@ -16,7 +16,9 @@ class OfflineSocket {
   onmessage: ((ev: unknown) => void) | null = null
   onerror: ((ev: unknown) => void) | null = null
   onclose: ((ev: unknown) => void) | null = null
-  send(_msg: string) {}
+  send(msg: string) {
+    void msg
+  }
   close() {}
 }
 

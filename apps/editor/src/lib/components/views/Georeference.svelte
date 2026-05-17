@@ -511,8 +511,6 @@
     const gcp = mapsState.activeMap?.gcps[gcpId]
 
     if (mapId && gcp) {
-      const gcps = mapsState.activeMap?.gcps
-
       if (pane === 'geo') {
         if (!gcp.resource) {
           mapsState.removeGcp({ mapId, gcpId })
